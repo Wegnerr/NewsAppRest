@@ -11,6 +11,7 @@ parser = reqparse.RequestParser()
 parser.add_argument('text')
 parser.add_argument('category')
 parser.add_argument('u_name')
+parser.add_argument('art_sn')
 
 
 class Articles(Resource):
@@ -95,11 +96,6 @@ class Feed(Resource):
         return res
 
 
-class Picked(Resource):
-    def get(self):
-        pass
-
-
 class Users(Resource):
 
     def get(self):
@@ -113,7 +109,7 @@ class Users(Resource):
         args = parser.parse_args()
         sn = mongo.db.user.count() + 1
         mongo.db.user.insert_one(
-            {"sn": sn, "name": args['u_name'], "cats": [args['category']]})
+            {"sn": sn, "name": args['u_name'], "cats": [args['category']], "saved": []})
         return 200
 
 
@@ -134,11 +130,61 @@ class User(Resource):
         return 200
 
 
+class Saved(Resource):
+    def get(self, u_sn):
+        us = mongo.db.user.find({"sn": int(u_sn)})
+        u = [x for x in us]
+        res = []
+        for c in u[0]["saved"]:
+            res.append(c)
+        return res
+
+    def patch(self, u_sn):
+        args = parser.parse_args()
+        query = {"sn": int(u_sn)}
+        us = mongo.db.user.find(query)
+        u = [x for x in us]
+        lists = u[0]["saved"]
+        lists.append(args["art_sn"])
+        new = {"saved": lists}
+        try:
+            mongo.db.user.update_one(query, {"$set": new})
+        except:
+            return 500
+        return 200
+
+
+class Save(Resource):
+    def get(self, u_sn, a_sn):
+        art = None
+        for a in mongo.db.artics.find({"sn": int(a_sn)}):
+            art = a
+        if art is None:
+            return 500
+
+        return art["text"]
+
+    def delete(self, u_sn, a_sn):
+        query = {"sn": int(u_sn)}
+        us = mongo.db.user.find(query)
+        u = [x for x in us]
+        lists = u[0]["saved"]
+        try:
+            lists.remove(a_sn)
+            new = {"saved": lists}
+            mongo.db.user.update_one(query, {"$set": new})
+        except:
+            return 500
+        return 200
+
+
 api.add_resource(Articles, '/articles')
 api.add_resource(Article, '/articles/<art_sn>')
 api.add_resource(Users, '/users')
 api.add_resource(User, '/users/<u_sn>')
 api.add_resource(Feed, '/users/<u_sn>/feed')
+api.add_resource(Saved, '/users/<u_sn>/saved')
+api.add_resource(Save, '/users/<u_sn>/saved/<a_sn>')
 api.add_resource(Categories, '/categories')
 api.add_resource(Category, '/categories/<cat_sn>')
 

@@ -3,9 +3,10 @@
 Flask app implementing REST API for news aggregator. Contains definitions of e.g. User class, Article class and more. Connects to MongoDB database.
 
 # Prerequisites
-Python > 3.0
-Flask
-Pymongo
+* Python > 3.0
+* Flask*
 
+```
 # Usage
-./core.py
+$ ./core.py
+```

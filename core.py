@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, request, jsonify, abort
 from flask_restful import Resource, Api, reqparse
 from flask_pymongo import PyMongo
 
@@ -14,6 +14,31 @@ parser.add_argument('u_name')
 parser.add_argument('art_sn')
 
 
+def get_paginated_list(results, url, start, limit):
+    start = int(start)
+    limit = int(limit)
+    count = len(results)
+    if count < start or limit < 0:
+        abort(404)
+    obj = {}
+    obj['start'] = start
+    obj['limit'] = limit
+    obj['count'] = count
+    if start == 1:
+        obj['previous'] = ''
+    else:
+        start_copy = max(1, start - limit)
+        limit_copy = start - 1
+        obj['previous'] = url + '?start=%d&limit=%d' % (start_copy, limit_copy)
+    if start + limit > count:
+        obj['next'] = ''
+    else:
+        start_copy = start + limit
+        obj['next'] = url + '?start=%d&limit=%d' % (start_copy, limit)
+    obj['results'] = results[(start - 1):(start - 1 + limit)]
+    return obj
+
+
 class Articles(Resource):
     def get(self):
         artics = mongo.db.artics.find({})
@@ -21,7 +46,9 @@ class Articles(Resource):
         for art in artics:
             print(art)
             articles.append(art["text"])
-        return articles
+        return get_paginated_list(articles, '/articles',
+                                  start=request.args.get('start', 1),
+                                  limit=request.args.get('limit', 5))
 
     def post(self):
         args = parser.parse_args()
@@ -35,6 +62,7 @@ class Articles(Resource):
 class Article(Resource):
 
     def get(self, art_sn):
+        print(art_sn)
         art = None
         for a in mongo.db.artics.find({"sn": int(art_sn)}):
             art = a
